@@ -1,52 +1,59 @@
 import streamlit as st
 import pandas as pd
-import psycopg2 as psql
-from psycopg2 import pool
+from funciones import init_connection_pool
 
-dbname = st.secrets["umbrellaConn"]["dbname"]
-user = st.secrets["umbrellaConn"]["user"]
-password = st.secrets["umbrellaConn"]["password"]
-host = st.secrets["umbrellaConn"]["host"]
-port = st.secrets["umbrellaConn"]["port"]
-
-@st.cache_resource
-def init_connection_pool():
-    return pool.ThreadedConnectionPool(
-        minconn=1,
-        maxconn=10,
-        dbname=dbname,
-        user=user,
-        password=password,
-        host=host,
-        port=port
-    )
+st.set_page_config(
+    page_title="Umbrella Corp - Access",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
+    
+    st.markdown(
+        """
+        <style>
+            [data-testid="collapsedControl"] {display: none;}
+            [data-testid="stSidebar"] {display: none;}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    with st.form("login"):
-        nombre_usuario = st.text_input(label = "Usuario: ", value = "")
-        contrasena = st.text_input(label = "Contraseña: ", value = "", type = "password")
-        
-        query = "SELECT id_emp, nombre_usuario, contrasena FROM credenciales_estandar WHERE nombre_usuario = %s AND contrasena = %s" 
-        if st.form_submit_button("Login"):
-            db_pool = init_connection_pool()
-            conn = db_pool.getconn()
-            try:
-                cur = conn.cursor()
-                cur.execute(query,(nombre_usuario,contrasena))
-                user = cur.fetchone()
-                if user:
-                    st.session_state.logged_in = True
-                    st.session_state.user = user
-                else:
-                    st.error("Credenciales Incorrectas")
-                cur.close()
-            finally:
-                db_pool.putconn(conn)
-            st.rerun()
+    st.markdown("<h1 style='text-align: center; color: #cc0000; font-family: Arial, sans-serif;'>UMBRELLA CORPORATION</h1>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; color: #555555; font-family: Arial, sans-serif;'>Terminal de Autenticación Central</h4>", unsafe_allow_html=True)
+    st.write("")
+    st.write("")
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        with st.form("login"):
+            nombre_usuario = st.text_input(label = "Usuario: ", value = "")
+            contrasena = st.text_input(label = "Contraseña: ", value = "", type = "password")
+            
+            query = "SELECT cientificos.id_emp, nombre_usuario, contrasena, cientificos.nombre, cientificos.apellido, cientificos.nivel as nivel, cientificos.id_jefe FROM credenciales_estandar JOIN cientificos ON cientificos.id_emp = credenciales_estandar.id_emp WHERE nombre_usuario = %s AND contrasena = %s" 
+            
+            st.write("")
+            
+            if st.form_submit_button("Login", use_container_width=True):
+                db_pool = init_connection_pool()
+                conn = db_pool.getconn()
+                try:
+                    cur = conn.cursor()
+                    cur.execute(query,(nombre_usuario,contrasena))
+                    user = cur.fetchone()
+                    if user:
+                        st.session_state.logged_in = True
+                        st.session_state.user = user
+                    else:
+                        st.error("Credenciales Incorrectas")
+                    cur.close()
+                finally:
+                    db_pool.putconn(conn)
+                st.rerun()
 else:
-    st.markdown(f"Bienvenido, {st.session_state.user[1]}")
-
+    st.switch_page("pages/despliegues.py")
